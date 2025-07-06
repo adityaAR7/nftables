@@ -287,6 +287,9 @@ type SetElement struct {
 	Expires time.Duration
 
 	Counter *expr.Counter
+	// Table and set this element belongs to (populated for testing)
+	TableName string
+	SetName   string
 }
 
 func (s *SetElement) decode(fam byte) func(b []byte) error {
@@ -804,21 +807,30 @@ func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
 	ad.ByteOrder = binary.BigEndian
 
 	var elements []SetElement
+	var tblName, setName string
 	for ad.Next() {
-		b := ad.Bytes()
-		if ad.Type() == unix.NFTA_SET_ELEM_LIST_ELEMENTS {
-			ad, err := netlink.NewAttributeDecoder(b)
+		// capture table and set name if present
+		switch ad.Type() {
+		case unix.NFTA_SET_TABLE:
+			tblName = ad.String()
+			continue
+		case unix.NFTA_SET_NAME:
+			setName = ad.String()
+			continue
+		case unix.NFTA_SET_ELEM_LIST_ELEMENTS:
+			innerAd, err := netlink.NewAttributeDecoder(ad.Bytes())
 			if err != nil {
 				return nil, err
 			}
-			ad.ByteOrder = binary.BigEndian
+			innerAd.ByteOrder = binary.BigEndian
 
-			for ad.Next() {
+			for innerAd.Next() {
 				var elem SetElement
-				switch ad.Type() {
-				case unix.NFTA_LIST_ELEM:
-					ad.Do(elem.decode(fam))
+				if innerAd.Type() == unix.NFTA_LIST_ELEM {
+					innerAd.Do(elem.decode(fam))
 				}
+				elem.TableName = tblName
+				elem.SetName = setName
 				elements = append(elements, elem)
 			}
 		}
