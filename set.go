@@ -807,7 +807,7 @@ func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
 	ad.ByteOrder = binary.BigEndian
 
 	var elements []SetElement
-	var tblName, setName string
+	var tblName, setName string = "unknown", "unknown"
 	for ad.Next() {
 		// capture table and set name if present
 		switch ad.Type() {
