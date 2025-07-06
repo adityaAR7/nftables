@@ -757,6 +757,12 @@ func setsFromMsg(msg netlink.Message) (*Set, error) {
 			data := ad.Bytes()
 			value, ok := userdata.GetUint32(data, userdata.NFTNL_UDATA_SET_MERGE_ELEMENTS)
 			set.AutoMerge = ok && value == 1
+		case unix.NFTA_SET_TABLE:
+			tblName := ad.String()
+			set.Table = &Table{
+				Name:   tblName,
+				Family: TableFamily(msg.Data[0]),
+			}
 		}
 	}
 	return &set, nil
