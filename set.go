@@ -808,7 +808,6 @@ func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
 	var elements []SetElement
 	var set Set
 	for ad.Next() {
-		// capture table and set name if present
 		switch ad.Type() {
 		case unix.NFTA_SET_TABLE:
 			tblName := ad.String()
