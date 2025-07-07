@@ -291,6 +291,12 @@ type SetElement struct {
 	Set *Set
 }
 
+// SetElementsEvent represents a set elements add or delete event.
+type SetElementsEvent struct {
+	Set      *Set
+	Elements []SetElement
+}
+
 func (s *SetElement) decode(fam byte) func(b []byte) error {
 	return func(b []byte) error {
 		ad, err := netlink.NewAttributeDecoder(b)
@@ -795,7 +801,7 @@ var (
 	delElemHeaderType = netlink.HeaderType((unix.NFNL_SUBSYS_NFTABLES << 8) | unix.NFT_MSG_DELSETELEM)
 )
 
-func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
+func elementsFromMsg(fam byte, msg netlink.Message) (*SetElementsEvent, error) {
 	if got, want1, want2 := msg.Header.Type, newElemHeaderType, delElemHeaderType; got != want1 && got != want2 {
 		return nil, fmt.Errorf("unexpected header type: got %v, want %v or %v", got, want1, want2)
 	}
@@ -805,18 +811,19 @@ func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
 	}
 	ad.ByteOrder = binary.BigEndian
 
-	var elements []SetElement
-	var set Set
+	var setElementsEvent SetElementsEvent
+	setElementsEvent.Set = &Set{}
+
 	for ad.Next() {
 		switch ad.Type() {
 		case unix.NFTA_SET_TABLE:
 			tblName := ad.String()
-			set.Table = &Table{
+			setElementsEvent.Set.Table = &Table{
 				Name:   tblName,
 				Family: TableFamily(msg.Data[0]),
 			}
 		case unix.NFTA_SET_NAME:
-			set.Name = ad.String()
+			setElementsEvent.Set.Name = ad.String()
 		case unix.NFTA_SET_ELEM_LIST_ELEMENTS:
 			innerAd, err := netlink.NewAttributeDecoder(ad.Bytes())
 			if err != nil {
@@ -829,12 +836,11 @@ func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
 				if innerAd.Type() == unix.NFTA_LIST_ELEM {
 					innerAd.Do(elem.decode(fam))
 				}
-				elem.Set = &set
-				elements = append(elements, elem)
+				setElementsEvent.Elements = append(setElementsEvent.Elements, elem)
 			}
 		}
 	}
-	return elements, nil
+	return &setElementsEvent, nil
 }
 
 // GetSets returns the sets in the specified table.
@@ -964,7 +970,7 @@ func (cc *Conn) GetSetElements(s *Set) ([]SetElement, error) {
 		if err != nil {
 			return nil, err
 		}
-		elems = append(elems, s...)
+		elems = append(elems, s.Elements...)
 	}
 
 	return elems, nil
