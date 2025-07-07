@@ -814,7 +814,7 @@ func elementsFromMsg(fam byte, msg netlink.Message) ([]SetElement, error) {
 			tblName := ad.String()
 			set.Table = &Table{
 				Name:   tblName,
-				Family: TableFamily(fam),
+				Family: TableFamily(msg.Data[0]),
 			}
 		case unix.NFTA_SET_NAME:
 			set.Name = ad.String()
