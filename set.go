@@ -287,8 +287,6 @@ type SetElement struct {
 	Expires time.Duration
 
 	Counter *expr.Counter
-	// Set this element belongs to
-	Set *Set
 }
 
 // SetElementsEvent represents a set elements add or delete event.
